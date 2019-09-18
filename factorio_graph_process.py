@@ -4,7 +4,7 @@ from factorio_scrapper import Item, Row, ItemFromFactorioIcon, Recipe
 
 # with open('factorio.pkl', 'rb') as f:
 #     visited_link, items = pickle.load(f)
-with open('fact.pkl', 'rb') as f:
+with open('factorio.pkl', 'rb') as f:
     visited_link, items = pickle.load(f)
 
 
