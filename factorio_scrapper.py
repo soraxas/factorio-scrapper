@@ -1,10 +1,16 @@
 from selenium import webdriver
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-import selenium.common.exceptions as seleniumException
+from binary_downloader.phantomjs import PhantomjsDownloader
+
+phantomjs_downloader = PhantomjsDownloader()
+import os
+if not os.path.isfile(phantomjs_downloader.get_bin()):
+    # None exists, download binary file
+    print("Downloading phantomjs binary file")
+    phantomjs_downloader.download()
+    print("Done!")
 
 kwargs = {
-    'executable_path': 'bin/phantomjs',
-    # 'desired_capabilities': dcap,
+    'executable_path': phantomjs_downloader.get_bin(),
     # 'service_log_path': log_path
 }
 
@@ -337,3 +343,7 @@ def from_json(x):
 #
 # with open("factorio.json", "r") as write_file:
 #     data = json.load(write_file)
+
+
+if __name__ == '__main__':
+    scrap()
