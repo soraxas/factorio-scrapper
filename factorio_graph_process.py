@@ -139,11 +139,11 @@ for dest, incomings in _edges_to_be_process.items():
     elif 'Oil refinery' in incomings:
         true_incoming = 'Oil refinery'
     elif 'Stone furnace' in incomings:
-        true_incoming = 'Oil refinery'
+        true_incoming = 'Stone furnace'
     else:
         raise Exception((dest, incomings))
 
-    add_edge(true_incoming, dest, color='purple')
+    add_edge(true_incoming, dest, color='magenta')
     dot.node(true_incoming, style='filled', fillcolor='maroon1')
 
 #%%
