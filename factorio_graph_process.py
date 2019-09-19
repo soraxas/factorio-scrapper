@@ -36,6 +36,82 @@ all_recipes.update(extra_recipes)
 
 
 #%%
+class CoolEdge():
+    """Represent an edge that can be one-to-one, many-to-many, ... etc."""
+    def __init__(self, fm=None, to=None, *args, tos=None, fms=None, type=None, **kwargs):
+        if (to is None and tos is None) or (fm is None and fms is None):
+            raise ValueError("'To' or 'From' is not given!")
+        if type is None:
+            raise ValueError("type of edge is not given!")
+
+        if tos is None:
+            tos = [to]
+        if fms is None:
+            fms = [fm]
+
+        # filter out unwanted edges.
+        no_unwanted_edge = lambda x : x.name not in FILTER_OUT
+        tos = list(filter(no_unwanted_edge, tos))
+        fms = list(filter(no_unwanted_edge, fms))
+
+        self.tos = tos
+        self.fms = fms
+        self.args = args
+        self.kwargs = kwargs
+        self.type = type
+
+    def __hash__(self):
+        return hash((frozenset(self.fms), frozenset(self.tos)))
+
+    def __eq__(self, other):
+        return frozenset(self.fms) == frozenset(other.fms) and frozenset(self.tos) == frozenset(other.tos)
+
+    def __iter__(self):
+        for t in self.tos:
+            yield t
+        for f in self.fms:
+            yield f
+
+    def __repr__(self):
+        if self.type == 'prod_by':
+            edge_str = f"{' + '.join((t.name for t in self.tos))} -> {' + '.join((f.name for f in self.fms))}"
+        else:
+            edge_str = f"{' + '.join((t.name for t in self.tos))} -> {' + '.join((f.name for f in self.fms))}"
+        return f"<CEdge|{self.type}:{edge_str}>"
+
+    def _add(self, *args, **kwargs):
+        kwargs.update(self.kwargs)
+        self.dot.edge(*args, *self.args, **kwargs)
+
+    def add(self, dot):
+        self.dot = dot
+        if self.type == 'recipe':
+            p1 = get_phantom_nodes()
+            for f in self.fms:
+                self._add(f.name, p1, str(f.count), dir='none', color='blue')
+                # dot.edge(f.name, p1, str(f.count), *self.args, dir='none', color='blue', *self.kwargs)
+            if len(self.tos) == 1:
+                self._add(p1, self.tos[0].name, str(self.tos[0].count), color='red')
+            else:
+                p2 = get_phantom_nodes()
+                for t in self.tos:
+                    self._add(p2, t.name, str(t.count), color='red')
+                self._add(p1, p2, dir='none', color='red')
+                dot.node(p2, shape='point', width='0.01', height='0.01')
+
+            dot.node(p1, shape='point', width='0.01', height='0.01')
+        elif self.type == 'req_tech':
+            assert len(self.tos) == len(self.fms) == 1
+            self._add(self.fms[0].name, self.tos[0].name)
+        elif self.type == 'prod_by':
+            assert len(self.tos) == len(self.fms) == 1
+            self._add(self.fms[0].name, self.tos[0].name)
+        else:
+            raise ValueError(f"Unknown type {self.type}!")
+
+
+
+#%%
 
 from graphviz import Digraph
 
@@ -50,20 +126,6 @@ FILTER_OUT = {
     'Empty barrel'
 }
 
-def add_edge(e1, e2, *args, **kwargs):
-    if e1 in FILTER_OUT or e2 in FILTER_OUT:
-        return False
-    dot.edge(e1, e2, *args, **kwargs)
-    _edges.add((e1, e2))
-    return True
-
-# dir(dot)
-# dot.edge(set(c.name for c in r.conditions), tuple(e.name for c in r.effects))
-#
-#
-# tuple(c.name for c in r.conditions)
-# tuple(e.name for c in r.effects)
-
 
 phantom_nodes = []
 def get_phantom_nodes():
@@ -72,98 +134,85 @@ def get_phantom_nodes():
     return p
 
 #%%
-
-
+"""ADD RECIPE"""
 for r in all_recipes:
-    p1 = get_phantom_nodes()
-    p2 = get_phantom_nodes()
-
-    # if len(r.conditions) == len(r.effects) == 1:
-    #     #  one to one mapping
-    #     add_edge(c.conditions[0].name, r.effects[0], color='blue')
-    # else:
-    for c in r.conditions:
-        add_edge(c.name, p1, str(c.count), dir='none', color='blue')
-    if len(r.effects) == 1:
-        add_edge(p1, r.effects[0].name, str(r.effects[0].count), color='red')
-    else:
-        for e in r.effects:
-            add_edge(p2, e.name, str(e.count), color='red')
-        add_edge(p1, p2, dir='none', color='red')
-
-used_edges = set()
-for e in _edges:
-    used_edges.update(e)
-for p in phantom_nodes:
-    if p in used_edges:
-        dot.node(p, shape='point', width='0.01', height='0.01')
-
-#%%
-"""ORIGINAL ADD RECIPE"""
-# for r in all_recipes:
-#     for c in r.conditions:
-#         for e in r.effects:
-            # add_edge(c.name, e.name, color='blue')
+    _edges.add(CoolEdge(fms=[c for c in r.conditions],
+                        tos=[e for e in r.effects],
+                        type='recipe'))
 
 """REQ TECH"""
 if False:
     for req_tech, item in all_req_tech:
         for r in req_tech:
-            add_edge(r.name, item.name, color='green')
+            _edges.add(CoolEdge(r, item, color='green', type='req_tech'))
+            dot.node(r.name, style='filled', fillcolor='green')
 
+"""PRODUCE BY"""
 # we need to do some filtering first
 _edges_to_be_process = {}
 for prod_by, item in all_prod_by:
     for p in prod_by:
-        if item.name in FILTER_OUT or p.name in FILTER_OUT:
+        if item in FILTER_OUT or p in FILTER_OUT:
             continue
-        _p_out_edge = _edges_to_be_process.get(item.name, [])
-        _p_out_edge.append(p.name)
-        _edges_to_be_process[item.name] = _p_out_edge
-        # _edges_to_be_process.append((p.name, item.name))
-        # add_edge(p.name, item.name, color='purple')
+        _p_out_edge = _edges_to_be_process.get(item, [])
+        _p_out_edge.append(p)
+        _edges_to_be_process[item] = _p_out_edge
 # try to add manual crafting first, if not exist then assembling machine 1..3
 for dest, incomings in _edges_to_be_process.items():
-    incomings = list(filter(lambda x : 'barrel' not in x, incomings))
-    if 'Crafting#Manual crafting' in incomings:
+    incomings = list(filter(lambda x : 'barrel' not in x.name, incomings))
+    incoming_by_str_name = {x.name : x for x in incomings}
+    if 'Crafting#Manual crafting' in incoming_by_str_name:
         # we treat manual crafting as do-able always
         continue
-    if len(incomings) == 1:
+    elif len(incomings) == 1:
         true_incoming = incomings[0]
-    elif 'Assembling machine 1' in incomings:
-        true_incoming = 'Assembling machine 1'
-    elif 'Assembling machine 2' in incomings:
-        true_incoming = 'Assembling machine 2'
-    elif 'Assembling machine 3' in incomings:
-        true_incoming = 'Assembling machine 3'
-    elif 'Oil refinery' in incomings:
-        true_incoming = 'Oil refinery'
-    elif 'Stone furnace' in incomings:
-        true_incoming = 'Stone furnace'
+    elif 'Assembling machine 1' in incoming_by_str_name:
+        true_incoming = incoming_by_str_name['Assembling machine 1']
+    elif 'Assembling machine 2' in incoming_by_str_name:
+        true_incoming = incoming_by_str_name['Assembling machine 2']
+    elif 'Assembling machine 3' in incoming_by_str_name:
+        true_incoming = incoming_by_str_name['Assembling machine 3']
+    elif 'Oil refinery' in incoming_by_str_name:
+        true_incoming = incoming_by_str_name['Oil refinery']
+    elif 'Stone furnace' in incoming_by_str_name:
+        true_incoming = incoming_by_str_name['Stone furnace']
     else:
-        raise Exception((dest, incomings))
+        raise Exception((dest, incoming_by_str_name))
 
-    add_edge(true_incoming, dest, color='magenta')
-    dot.node(true_incoming, style='filled', fillcolor='maroon1')
+    _edges.add(CoolEdge(true_incoming, dest, color='magenta', type='prod_by'))
+    dot.node(true_incoming.name, style='filled', fillcolor='maroon1')
 
 #%%
+# actually add edges to graphviz
 for e in _edges:
-    _nodes.update(e)
+    e.add(dot)
+    _nodes.update((_e.name for _e in e))
 
-def check_not_exists_in_all_edges(name, idx):
+# for easier of checking edges
+_edges_as_str = []
+for e in _edges:
+    _edges_as_str.append(([_e.name for _e in e.fms],
+                          [_e.name for _e in e.tos]))
+
+def check_not_exists_in_all_edges(name, type):
     """Given an index, this will check if there exists no given name
     among the idex of all edges."""
-    for e in _edges:
-        if n == e[idx]:
-            return False
+    if type == 'outgoing':
+        for e in _edges_as_str:
+            if name in e[0]:
+                return False
+    elif type == 'incoming':
+        for e in _edges_as_str:
+            if name in e[1]:
+                return False
     return True
 
 for n in _nodes:
     # color node without incomings (root)
-    if check_not_exists_in_all_edges(name=n, idx=1):
+    if check_not_exists_in_all_edges(name=n, type='incoming'):
         dot.node(n, style='filled', fillcolor='green3')
-    # color node without outcomings (leaves)
-    if check_not_exists_in_all_edges(name=n, idx=0):
+    # color node without outgoing (leaves)
+    if check_not_exists_in_all_edges(name=n, type='outgoing'):
         dot.node(n, style='filled', fillcolor='aquamarine')
 
 #%%
