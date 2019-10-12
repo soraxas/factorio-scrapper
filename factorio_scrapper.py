@@ -1,8 +1,10 @@
 from selenium import webdriver
+
 from binary_downloader.phantomjs import PhantomjsDownloader
 
 phantomjs_downloader = PhantomjsDownloader()
 import os
+
 if not os.path.isfile(phantomjs_downloader.get_bin()):
     # None exists, download binary file
     print("Downloading phantomjs binary file")
@@ -18,7 +20,7 @@ kwargs = {
 
 driver = webdriver.PhantomJS(**kwargs)
 
-#%%
+# %%
 
 
 # dir(driver)
@@ -37,16 +39,17 @@ rows_to_retrieve = [
     # 'Mining time',
     # 'Vehicle acceleration',
     'Consumed by',
-    ]
+]
 
 multi_item_types = ['Recipe',
                     'Total raw',
                     'Required technologies',
                     'Produced by',
-                    'Consumed by',]
+                    'Consumed by', ]
 
 for i in multi_item_types:
     assert i in rows_to_retrieve
+
 
 # %%%
 
@@ -71,7 +74,8 @@ class Row():
         new_item.items = items
         return new_item
 
-class ItemFromFactorioIcon():
+
+class ItemFromFactorioIcon:
     def __init__(self, web_element):
         # self.web_element = web_element
         self.name = web_element.find_element_by_tag_name('a').get_attribute('title')
@@ -106,6 +110,7 @@ class ItemFromFactorioIcon():
 
 class Item():
     """Represent an item, and store all of the important information."""
+
     def __init__(self, web_element):
         # self.web_element = web_element
         self.name = web_element.title.split(' - ')[0]
@@ -121,7 +126,7 @@ class Item():
         return self.values[idx]
 
     def __repr__(self):
-        text = '\n'.join([f'      {k}: {v}' for k,v in self.values.items()])
+        text = '\n'.join([f'      {k}: {v}' for k, v in self.values.items()])
         return f'<item:{self.name}\n{text}\n\item>'
 
     def __hash__(self):
@@ -133,6 +138,7 @@ class Item():
         new_item.item_url_name = item_url_name
         new_item.values = values
         return new_item
+
 
 def get_row_from_title(title, idx_to_return=None, return_next_row=False):
     """This helper function helps to locate a row title,
@@ -153,6 +159,7 @@ def get_row_from_title(title, idx_to_return=None, return_next_row=False):
         return driver.find_elements_by_xpath(f'{xpath}/following-sibling::tr')[idx_to_return]
     else:
         return element[idx_to_return]
+
 
 def get_value(row_type):
     """Return the correct value depend on row type."""
@@ -178,7 +185,7 @@ class Recipe(Row):
         self.conditions = [self.items[i] for i in range(len(self.items))
                            if self.operators[i] == 'condition']
         self.effects = [self.items[i] for i in range(len(self.items))
-                           if self.operators[i] == 'effect']
+                        if self.operators[i] == 'effect']
 
     @staticmethod
     def get_equation_effects(equation):
@@ -187,7 +194,7 @@ class Recipe(Row):
         eq_split = equation.split('\n')
         # make sure we can make each odd element as float (as they must be qualtity)
         for i in range(len(eq_split)):
-            if i % 2 == 0: # we are testing even instead of odd because of 0-base indexing
+            if i % 2 == 0:  # we are testing even instead of odd because of 0-base indexing
                 operators.append(current_operator)
             else:
                 if eq_split[i] not in ('+', '→'):
@@ -213,9 +220,9 @@ class Recipe(Row):
         return True
 
     def __repr__(self):
-        linked_item_tostr = lambda x : f'<{x.name}={x.count}>'
+        linked_item_tostr = lambda x: f'<{x.name}={x.count}>'
         return (f"<Recipe: {' + '.join(map(linked_item_tostr, self.conditions))}"
-               f" → {' + '.join(map(linked_item_tostr, self.effects))}>")
+                f" → {' + '.join(map(linked_item_tostr, self.effects))}>")
 
     def __iter__(self):
         return self.items.__iter__()
@@ -232,6 +239,7 @@ class Recipe(Row):
         new_item.conditions = conditions
         new_item.effects = effects
         return new_item
+
 
 # %%
 # get_row_from_title('Recipe', return_next_row=True, idx_to_return=0).text
@@ -258,6 +266,7 @@ def scrap():
             if field in item.values:
                 links_to_visit.extend((linked_item.link for linked_item in item.values[field]))
 
+
 # import pickle
 #
 #
@@ -272,30 +281,30 @@ def scrap():
 def to_json(x):
     """Convert the nested scrapped items dict to json text"""
     y = {}
-    if isinstance(x, Recipe)  or str(type(x)) == "<class '__main__.Recipe'>":
-        y['type'] =  'Recipe'
+    if isinstance(x, Recipe) or str(type(x)) == "<class '__main__.Recipe'>":
+        y['type'] = 'Recipe'
         y['items'] = list(map(to_json, x.items))
         y['operators'] = x.operators
         y['conditions'] = list(map(to_json, x.conditions))
         y['effects'] = list(map(to_json, x.effects))
 
     elif isinstance(x, Row) or str(type(x)) == "<class '__main__.Row'>":
-        y['type'] =  'Row'
+        y['type'] = 'Row'
         y['items'] = list(map(to_json, x.items))
 
     elif isinstance(x, Item) or str(type(x)) == "<class '__main__.Item'>":
-        y['type'] =  'Item'
-        y['item_url_name'] =  x.item_url_name
+        y['type'] = 'Item'
+        y['item_url_name'] = x.item_url_name
         y['values'] = to_json(x.values)
 
     elif isinstance(x, ItemFromFactorioIcon) or str(type(x)) == "<class '__main__.ItemFromFactorioIcon'>":
-        y['type'] =  'ItemFromFactorioIcon'
-        y['name'] =  x.name
-        y['link'] =  x.link
-        y['count'] =  x.count
+        y['type'] = 'ItemFromFactorioIcon'
+        y['name'] = x.name
+        y['link'] = x.link
+        y['count'] = x.count
 
     elif isinstance(x, dict):
-        y =  {k : to_json(v) for k,v in  x.items()}
+        y = {k: to_json(v) for k, v in x.items()}
 
     elif isinstance(x, (str, float, int)):
         y = x
@@ -304,11 +313,12 @@ def to_json(x):
 
     return y
 
+
 def from_json(x):
     """Convert the nested scrapped items dict to """
     if isinstance(x, dict):
         if 'type' not in x:
-            return {k : from_json(v) for k, v in x.items()}
+            return {k: from_json(v) for k, v in x.items()}
 
         elif x['type'] == 'Recipe':
             return Recipe.from_values(
@@ -335,6 +345,7 @@ def from_json(x):
     else:
         print(x)
         raise Exception(type(x))
+
 
 # import json
 #
