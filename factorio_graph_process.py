@@ -134,6 +134,7 @@ extra_recipes = [
 
 all_recipes.update(extra_recipes)
 
+YES = []
 
 # %%
 class CoolEdge:
@@ -182,24 +183,47 @@ class CoolEdge:
         return f"<CEdge|{self.type}:{edge_str}>"
 
     def _add(self, *args, **kwargs):
+        # a = ["Iron ore", "Iron plate", "Stone Furnace", "Stone"]
+        # a = [_a.lower() for _a in a]
+        # if args[0].lower() not in a and args[1].lower() not in a:
+        #     return
+        YES.extend(args[:2])
+        args = args[:2]
+        kwargs['color'] = "grey"
         kwargs.update(self.kwargs)
         self.dot.edge(*args, *self.args, **kwargs)
 
     def add(self, dot):
+        all_items = []
+        all_items.extend(self.fms)
+        all_items.extend(self.tos)
+
+        a = ["Iron ore", "Iron plate", "Stone Furnace", "Stone"]
+        a = [_a.lower() for _a in a]
+        print(all_items)
+        if not any(item.name.lower() in a for item in all_items):
+            return
+
+        if len(self.fms) > 1:
+            return
+        # if args[0].lower() not in a and args[1].lower() not in a:
+        #     return
+
         self.dot = dot
         if self.type == "recipe":
             p1 = get_phantom_nodes()
-            for f in self.fms:
-                self._add(f.name, p1, str(f.count), dir="none", color="blue")
-                # dot.edge(f.name, p1, str(f.count), *self.args, dir='none', color='blue', *self.kwargs)
-            if len(self.tos) == 1:
-                self._add(p1, self.tos[0].name, str(self.tos[0].count), color="red")
-            else:
-                p2 = get_phantom_nodes()
-                for t in self.tos:
-                    self._add(p2, t.name, str(t.count), color="red")
-                self._add(p1, p2, dir="none", color="red")
-                dot.node(p2, shape="point", width="0.01", height="0.01")
+            self._add(self.fms[0].name, self.tos[0].name)
+            # for f in self.fms:
+            #     self._add(f.name, p1, str(f.count), dir="none", color="blue")
+            #     # dot.edge(f.name, p1, str(f.count), *self.args, dir='none', color='blue', *self.kwargs)
+            # if len(self.tos) == 1:
+            #     self._add(p1, self.tos[0].name, str(self.tos[0].count), color="red")
+            # else:
+            #     p2 = get_phantom_nodes()
+            #     for t in self.tos:
+            #         self._add(p2, t.name, str(t.count), color="red")
+            #     self._add(p1, p2, dir="none", color="red")
+            #     dot.node(p2, shape="point", width="0.01", height="0.01")
 
             dot.node(p1, shape="point", width="0.01", height="0.01")
         elif self.type == "req_tech":
@@ -245,7 +269,7 @@ for r in all_recipes:
 if False:
     for req_tech, item in all_req_tech:
         for r in req_tech:
-            _edges.add(CoolEdge(r, item, color="green", type="req_tech"))
+            _edges.add(CoolEdge(r, item, type="req_tech"))
             dot.node(r.name, style="filled", fillcolor="green")
 
 """PRODUCE BY"""
@@ -280,8 +304,9 @@ for dest, incomings in _edges_to_be_process.items():
     else:
         raise Exception((dest, incoming_by_str_name))
 
-    _edges.add(CoolEdge(true_incoming, dest, color="magenta", type="prod_by"))
-    dot.node(true_incoming.name, style="filled", fillcolor="maroon1")
+    _edges.add(CoolEdge(true_incoming, dest, type="prod_by"))
+    if true_incoming.name in YES:
+        dot.node(true_incoming.name, style="filled", fillcolor="grey")
 
 # %%
 # actually add edges to graphviz
@@ -310,13 +335,17 @@ def check_not_exists_in_all_edges(name, type):
 
 
 for n in _nodes:
+    if n not in YES:
+        continue
     # color node without incomings (root)
     if check_not_exists_in_all_edges(name=n, type="incoming"):
-        dot.node(n, style="filled", fillcolor="green3")
+        dot.node(n, style="filled", fillcolor="magenta")
         print(n)
     # color node without outgoing (leaves)
-    if check_not_exists_in_all_edges(name=n, type="outgoing"):
-        dot.node(n, style="filled", fillcolor="aquamarine")
+    elif check_not_exists_in_all_edges(name=n, type="outgoing"):
+        dot.node(n, style="filled", fillcolor="lime")
+    else:
+        dot.node(n, style="filled", fillcolor="deepskyblue")
 
 # %%
 _edges_list = list(_edges)
@@ -333,7 +362,7 @@ for _n in _nodes:
 # %%
 
 # dot.save('factorio.dot')
-dot.render("factorio", view=True)
+dot.render("factorio3", view=True)
 
 # %%
 # post-process all nodes/edges
@@ -596,146 +625,3 @@ def use_igraph():
     )
 
 
-def previous_trial():
-    def add_node(color=None):
-        if edge_a not in _nodes:
-            _nodes.add(edge_a)
-            dot.node(edge_a, color=color)
-        if edge_b not in _nodes:
-            _nodes.add(edge_b)
-            dot.node(edge_b, color=color)
-
-    BLACK_LIST = [
-        "Advanced_oil_processing",
-        "Barrel",
-        "Coal_liquefaction",
-        "Crafting#Manual_crafting",
-        "Empty_barrel",
-        "Empty_water_barrel",
-        "Fill_crude_oil_barrel",
-        "Fill_heavy_oil_barrel",
-        "Fill_light_oil_barrel",
-        "Fill_lubricant_barrel",
-        "Fill_petroleum_gas_barrel",
-        "Fill_sulfuric_acid_barrel",
-        "Fill_water_barrel",
-        "Heavy_oil_cracking",
-        "Light_oil_cracking",
-        "Oil_processing",
-        "Oil_processing#Recipes",
-        "Solid_fuel_from_heavy_oil",
-        "Solid_fuel_from_light_oil",
-        "Time",
-        "Solid_fuel_from_petroleum_gas",
-    ]
-
-    i = 0
-
-    {i["Prototype type"] for i in items.values() if "Prototype type" in i.values}
-
-    for k, item in items.items():
-        i += 1
-        # if i > 80:
-        #     break
-        # try:
-
-        try:
-            if k in BLACK_LIST:
-                continue
-
-            # if item['Prototype type'] not in (
-            #     'resource',
-            #     'recipe',
-            #     'item',
-            #     'tool',
-            # ):
-            #     continue
-
-            edge_a = item["Internal name"]
-            # edge_a = item.item_url_name
-
-            if "Recipe" in item.values:
-                item["Recipe"].condition
-
-            for row_type in [
-                # 'Recipe',
-                # 'Required technologies',
-                "Produced by",
-                # 'Consumed by',
-            ]:
-
-                if row_type in item.values:
-                    for _i in item[row_type]:
-                        # print(_i.item_url_name)
-
-                        if _i.item_url_name == "Crafting#Manual_crafting":
-                            print(item)
-
-                        if _i.item_url_name in BLACK_LIST:
-                            continue
-
-                        edge_b = items[_i.item_url_name]["Internal name"]
-                        # edge_b = _i.item_url_name
-
-                        if row_type == "Recipe":
-                            color = "blue"
-                        elif row_type == "Required technologies":
-                            color = "red"
-                        elif row_type == "Produced by":
-                            color = "green"
-                        elif row_type == "Consumed by":
-                            color = "brown"
-                        else:
-                            raise Exception()
-
-                        edge_added = False
-
-                        if row_type in (
-                            "Recipe",
-                            "Required technologies",
-                            "Produced by",
-                        ):
-                            e = edge_b, edge_a
-                            dot.edge(edge_b, edge_a, color=color)
-                            edge_added = True
-                        elif row_type in (
-                            "___",
-                            "Consumed by",
-                            # ,
-                        ):
-                            e = edge_a, edge_b
-                            dot.edge(edge_a, edge_b, color=color)
-                            edge_added = True
-
-                        _edges.add(e)
-
-                        if edge_added:
-                            _nodes.add(edge_a)
-                            _nodes.add(edge_b)
-
-                        if row_type == "Produced by":
-                            break
-
-        except KeyError as e:
-            raise e
-            print(str(e))
-        except AssertionError as ee:
-            # raise e
-            # print(e)
-            print(row_type)
-
-    i
-
-    len(_nodes)
-
-    for n in _nodes:
-        # check if it has incoming edge
-        color = "red"
-        for e in _edges:
-            if e[1] == n:
-                color = "white"
-
-        if n in ["copper-ore", "iron-ore", "stone", "coal"]:
-            color = "red"
-
-        dot.node(n, style="filled", fillcolor=color)
