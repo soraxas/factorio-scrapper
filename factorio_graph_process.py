@@ -212,7 +212,7 @@ class CoolEdge:
 
         self.dot = dot
         if self.type == "recipe":
-            p1 = get_phantom_nodes()
+            # p1 = get_phantom_nodes()
             self._add(self.fms[0].name, self.tos[0].name)
             # for f in self.fms:
             #     self._add(f.name, p1, str(f.count), dir="none", color="blue")
@@ -226,7 +226,7 @@ class CoolEdge:
             #     self._add(p1, p2, dir="none", color="red")
             #     dot.node(p2, shape="point", width="0.01", height="0.01")
 
-            dot.node(p1, shape="point", width="0.01", height="0.01")
+            # dot.node(p1, shape="point", width="0.01", height="0.01")
         elif self.type == "req_tech":
             assert len(self.tos) == len(self.fms) == 1
             self._add(self.fms[0].name, self.tos[0].name)
