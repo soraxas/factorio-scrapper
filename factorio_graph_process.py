@@ -189,7 +189,8 @@ class CoolEdge:
         #     return
         YES.extend(args[:2])
         args = args[:2]
-        kwargs['color'] = "grey"
+        if 'color' not in kwargs:
+            kwargs['color'] = "grey"
         kwargs.update(self.kwargs)
         self.dot.edge(*args, *self.args, **kwargs)
 
@@ -231,7 +232,7 @@ class CoolEdge:
             self._add(self.fms[0].name, self.tos[0].name)
         elif self.type == "prod_by":
             assert len(self.tos) == len(self.fms) == 1
-            self._add(self.fms[0].name, self.tos[0].name)
+            self._add(self.fms[0].name, self.tos[0].name, color="red")
         else:
             raise ValueError(f"Unknown type {self.type}!")
 
