@@ -7,6 +7,10 @@ from factorio_scrapper import ItemFromFactorioIcon, Recipe, Item, Row
 with open("factorio.pkl", "rb") as f:
     visited_link, items = pickle.load(f)
 
+ShowSubGraph = True
+ShowSubGraph = False
+
+
 # %%
 
 # filter out unwanted nodes
@@ -183,10 +187,6 @@ class CoolEdge:
         return f"<CEdge|{self.type}:{edge_str}>"
 
     def _add(self, *args, **kwargs):
-        # a = ["Iron ore", "Iron plate", "Stone Furnace", "Stone"]
-        # a = [_a.lower() for _a in a]
-        # if args[0].lower() not in a and args[1].lower() not in a:
-        #     return
         YES.extend(args[:2])
         args = args[:2]
         if 'color' not in kwargs:
@@ -199,40 +199,50 @@ class CoolEdge:
         all_items.extend(self.fms)
         all_items.extend(self.tos)
 
-        a = ["Iron ore", "Iron plate", "Stone Furnace", "Stone"]
-        a = [_a.lower() for _a in a]
-        print(all_items)
-        if not any(item.name.lower() in a for item in all_items):
-            return
+        if ShowSubGraph:
+            a = ["Iron ore", "Iron plate", "Stone Furnace", "Stone", "Steel plate"]
+            a = [_a.lower() for _a in a]
+            print(all_items)
+            for item in all_items:
+                if item.name.lower() in a:
+                    print([i.name for i in all_items])
+                    break
+            else:
+                return
+            # if not any(item.name.lower() in a for item in all_items):
+            #     return
 
-        if len(self.fms) > 1:
-            return
-        # if args[0].lower() not in a and args[1].lower() not in a:
-        #     return
+            if len(self.fms) > 1:
+                return
+            # if args[0].lower() not in a and args[1].lower() not in a:
+            #     return
 
         self.dot = dot
         if self.type == "recipe":
-            # p1 = get_phantom_nodes()
-            self._add(self.fms[0].name, self.tos[0].name)
-            # for f in self.fms:
-            #     self._add(f.name, p1, str(f.count), dir="none", color="blue")
-            #     # dot.edge(f.name, p1, str(f.count), *self.args, dir='none', color='blue', *self.kwargs)
-            # if len(self.tos) == 1:
-            #     self._add(p1, self.tos[0].name, str(self.tos[0].count), color="red")
-            # else:
-            #     p2 = get_phantom_nodes()
-            #     for t in self.tos:
-            #         self._add(p2, t.name, str(t.count), color="red")
-            #     self._add(p1, p2, dir="none", color="red")
-            #     dot.node(p2, shape="point", width="0.01", height="0.01")
+            if ShowSubGraph:
+                self._add(self.fms[0].name, self.tos[0].name)
 
-            # dot.node(p1, shape="point", width="0.01", height="0.01")
+            else:
+                p1 = get_phantom_nodes()
+                for f in self.fms:
+                    self._add(f.name, p1, str(f.count), dir="none")
+                    # dot.edge(f.name, p1, str(f.count), *self.args, dir='none', color='blue', *self.kwargs)
+                if len(self.tos) == 1:
+                    self._add(p1, self.tos[0].name, str(self.tos[0].count))
+                else:
+                    p2 = get_phantom_nodes()
+                    for t in self.tos:
+                        self._add(p2, t.name, str(t.count))
+                    self._add(p1, p2, dir="none")
+                    dot.node(p2, shape="point", width="0.01", height="0.01")
+
+                dot.node(p1, shape="point", width="0.01", height="0.01")
         elif self.type == "req_tech":
             assert len(self.tos) == len(self.fms) == 1
             self._add(self.fms[0].name, self.tos[0].name)
         elif self.type == "prod_by":
             assert len(self.tos) == len(self.fms) == 1
-            self._add(self.fms[0].name, self.tos[0].name, color="red")
+            self._add(self.fms[0].name, self.tos[0].name, color="red3")
         else:
             raise ValueError(f"Unknown type {self.type}!")
 
@@ -306,8 +316,9 @@ for dest, incomings in _edges_to_be_process.items():
         raise Exception((dest, incoming_by_str_name))
 
     _edges.add(CoolEdge(true_incoming, dest, type="prod_by"))
-    if true_incoming.name in YES:
-        dot.node(true_incoming.name, style="filled", fillcolor="grey")
+    if ShowSubGraph:
+        if true_incoming.name in YES:
+            dot.node(true_incoming.name, style="filled", fillcolor="grey")
 
 # %%
 # actually add edges to graphviz
@@ -336,8 +347,9 @@ def check_not_exists_in_all_edges(name, type):
 
 
 for n in _nodes:
-    if n not in YES:
-        continue
+    if ShowSubGraph:
+        if n not in YES:
+            continue
     # color node without incomings (root)
     if check_not_exists_in_all_edges(name=n, type="incoming"):
         dot.node(n, style="filled", fillcolor="magenta")
@@ -362,8 +374,12 @@ for _n in _nodes:
 
 # %%
 
+dot.save('factorio.dot')
+
+# %%
+
 # dot.save('factorio.dot')
-dot.render("factorio3", view=True)
+dot.render("factorio4", view=True)
 
 # %%
 # post-process all nodes/edges
